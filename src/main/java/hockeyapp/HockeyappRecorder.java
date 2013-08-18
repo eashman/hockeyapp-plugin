@@ -19,13 +19,22 @@ import org.apache.http.entity.mime.MultipartEntity;
 import org.apache.http.entity.mime.content.FileBody;
 import org.apache.http.entity.mime.content.StringBody;
 import org.apache.http.impl.client.DefaultHttpClient;
+import org.apache.http.impl.conn.SingleClientConnManager;
 import org.apache.http.message.BasicNameValuePair;
+import org.apache.http.params.BasicHttpParams;
+import org.apache.http.params.HttpParams;
 import org.apache.http.client.HttpClient;
+import org.apache.http.conn.ClientConnectionManager;
+import org.apache.http.conn.scheme.Scheme;
+import org.apache.http.conn.scheme.SchemeRegistry;
+import org.apache.http.conn.ssl.SSLSocketFactory;
 import org.json.simple.parser.JSONParser;
 import org.kohsuke.stapler.DataBoundConstructor;
 import hudson.scm.ChangeLogSet.Entry;
 import java.io.*;
 import java.util.*;
+
+import javax.net.ssl.SSLContext;
 
 import net.sf.json.JSONObject;
 import org.apache.commons.collections.CollectionUtils;
@@ -99,7 +108,18 @@ public class HockeyappRecorder extends Recorder {
 					vars.expand(filePath), tempDir);
 			listener.getLogger().println(file);
 
-			HttpClient httpclient = new DefaultHttpClient();
+			SSLContext sslContext = SSLContext.getInstance("TLSv1");
+			sslContext.init(null, null, null);
+
+			SSLSocketFactory sf = new SelectCipherSocketFactory(sslContext);
+			Scheme httpsScheme = new Scheme("https", sf, 443);
+			SchemeRegistry schemeRegistry = new SchemeRegistry();
+			schemeRegistry.register(httpsScheme);
+
+			HttpParams params = new BasicHttpParams();
+			ClientConnectionManager connectionManager = new SingleClientConnManager(params, schemeRegistry);
+
+			HttpClient httpclient = new DefaultHttpClient(connectionManager, params);
             HttpPost httpPost;
             if(useAppVersionURL) {
                 if (appId == null) {
